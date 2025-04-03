@@ -1,0 +1,55 @@
+const express = require('express');
+const { google } = require('googleapis');
+const bodyParser = require('body-parser');
+
+const app = express();
+app.use(bodyParser.json());
+
+const PORT = 3000;
+
+// Google Sheets setup
+const SHEET_ID = '1MS_KhqR-R3EA8AL3ktpCgn7cGOufjBuGTz7ykSM2Kik';
+const SHEET_RANGE = 'Sheet1!A1:Z1000'; // Adjust range as needed
+const auth = new google.auth.GoogleAuth({
+  keyFile: 'credentials.json', // Path to your service account key file
+  scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+});
+const sheets = google.sheets({ version: 'v4', auth });
+
+// API to save data to Google Sheets
+app.post('/save-data', async (req, res) => {
+  const { data } = req.body; // Expecting an array of values to save
+
+  try {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: SHEET_ID,
+      range: SHEET_RANGE,
+      valueInputOption: 'RAW',
+      requestBody: {
+        values: [data], // Save as a single row
+      },
+    });
+    res.status(200).send('Data saved successfully.');
+  } catch (error) {
+    console.error('Error saving to Google Sheets:', error);
+    res.status(500).send('Failed to save data.');
+  }
+});
+
+// API to retrieve data from Google Sheets
+app.get('/get-data', async (req, res) => {
+  try {
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: SHEET_ID,
+      range: SHEET_RANGE,
+    });
+    res.status(200).json(response.data.values || []);
+  } catch (error) {
+    console.error('Error retrieving data from Google Sheets:', error);
+    res.status(500).send('Failed to retrieve data.');
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
